@@ -4,10 +4,7 @@ package uk.ac.susx.jsonfs;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -32,7 +29,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     void value(Map<String,Object> value) {
 
 
-        data(path.resolve(VALUE_FILE), s->null, ignore-> {
+        lock(path.resolve(VALUE_FILE), channel -> {
             Set<String> cur = keySet();
 
             cur.removeAll(value.keySet());
@@ -53,11 +50,19 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     @Override
     Map value() {
 
-            return data(path.resolve(VALUE_FILE), m->null, ignore-> {
+        return (Map)lock(path.resolve(VALUE_FILE), channel -> {
             try {
-                Map map = Files.walk(path, 1)
+                List<Path> paths = Files.walk(path, 1)
                         .filter(file->Files.isDirectory(file) && !file.equals(path))
-                        .collect(Collectors.toMap(file->file.getName(file.getNameCount()-1).toString().replaceAll("\\\\", "/"), file->get(file).value() ));
+                        .collect(Collectors.toList());
+
+                Map<String,Object> map = new HashMap<>();
+                for(Path path : paths) {
+                    String key = path.getName(path.getNameCount()-1).toString().replaceAll("\\\\", "/");
+                    Object val = get(path).value();
+                    map.put(key, val);
+                }
+
 
                 return map;
 
@@ -100,7 +105,8 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
         Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 
         if(Files.exists(keyPath)) {
-            return get(keyPath).value();
+            JsonFSEntry entry = get(keyPath);
+            return entry.type().equals(Type.NULL) ? null : entry.value();
         } else {
             return null;
         }
@@ -119,18 +125,15 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
             prev = null;
         }
 
-        if(value == null ){
 
-            remove(key);
-        } else {
-            try {
-                Files.createDirectories(keyPath);
-            } catch (IOException e ){
-                throw new JsonFSExcpetion(e);
-            }
-
-            make(keyPath, value);
+        try {
+            Files.createDirectories(keyPath);
+        } catch (IOException e ){
+            throw new JsonFSExcpetion(e);
         }
+
+        make(keyPath, value);
+
 
         return prev;
     }

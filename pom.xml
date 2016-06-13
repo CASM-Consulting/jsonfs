@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>uk.av.susx.tag</groupId>
+    <groupId>uk.ac.susx.tag</groupId>
     <artifactId>jsonfs</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>0.1.1</version>
 
     <properties>
         <junit.version>4.11</junit.version>

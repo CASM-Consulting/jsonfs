@@ -40,7 +40,7 @@ public class JsonFS {
     }
 
     public JsonFSNull nul() {
-        return new JsonFSNull(root);
+        return new JsonFSNull(root, null);
     }
 
     public JsonFSObject object(Map val) {

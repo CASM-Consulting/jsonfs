@@ -11,12 +11,14 @@ public class JsonFSNull extends JsonFSPrimitiveEntry<Void> {
         super(path);
     }
 
+    public JsonFSNull(Path path, Void v) {
+        super(path, Type.NULL, null);
+    }
+
     @Override
     void value(Void value) {
 
     }
-
-
 
     @Override
     Void value() {

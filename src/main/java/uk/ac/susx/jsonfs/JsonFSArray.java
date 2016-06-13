@@ -20,7 +20,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     void value(List value) {
-        data(path.resolve(VALUE_FILE), (l)->null, (v)->{
+        lock(path.resolve(VALUE_FILE), channel->{
 
             for(int i = 0 ; i < value.size(); ++i) {
                 add(i, value.get(i));
@@ -31,7 +31,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     List value() {
-        return data(path.resolve(VALUE_FILE), (l)->null, (v)->{
+        return (List)lock(path.resolve(VALUE_FILE), channel->{
             List list = new ArrayList<>();
             for(int i = 0; i < size(); ++i){
                 list.add(get(i));

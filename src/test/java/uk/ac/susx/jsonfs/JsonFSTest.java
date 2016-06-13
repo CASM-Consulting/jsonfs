@@ -57,6 +57,7 @@ public class JsonFSTest {
         Map map = new HashMap<>();
         map.put("hello", "world");
         map.put("one", Arrays.asList(1l, 2l, "three"));
+        map.put("five", null);
         JsonFSObject obj = fs.object(map);
         var = obj;
 
@@ -85,7 +86,7 @@ public class JsonFSTest {
         assertEquals(list, var.value());
 
         array.remove(map);
-        
+
         assertEquals(var, fs.get());
     }
 

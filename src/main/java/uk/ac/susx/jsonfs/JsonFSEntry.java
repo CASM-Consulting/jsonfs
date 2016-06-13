@@ -98,10 +98,9 @@ abstract public class JsonFSEntry<T> {
     }
 
     protected static <T> T data(Path path, Function<String, T> convert, Function<T, T> fn) {
-        try (
-                FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-                FileLock ignored = channel.lock();
-        ) {
+
+
+        return lock(path, channel->{
             BufferedReader reader = new BufferedReader(Channels.newReader(channel, "UTF-8"));
 
             T val;
@@ -112,16 +111,31 @@ abstract public class JsonFSEntry<T> {
             }
             T result = fn.apply(val);
 
-            if(!result.equals(val)) {
+            if(result == null) {
 
                 channel.truncate(0);
-                {
-                    Writer out = Channels.newWriter(channel, "utf-8");
-                    out.write(result.toString());
-                    out.flush();
-                }
+
+            } else if(!result.equals(val)) {
+
+                channel.truncate(0);
+
+                Writer out = Channels.newWriter(channel, "utf-8");
+                out.write(result.toString());
+                out.flush();
+
             }
 
+            return result;
+        });
+
+    }
+
+    protected static <T> T lock(Path path, FileChannelFn<T> fn) {
+        try (
+                FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+                FileLock ignored = channel.lock();
+        ) {
+            T result = fn.apply(channel);
             return result;
 
         } catch (IOException e){
@@ -129,7 +143,16 @@ abstract public class JsonFSEntry<T> {
         }
     }
 
+    protected interface FileChannelFn<T> {
+
+        T apply(FileChannel c) throws IOException;
+
+    }
+
     public boolean equals(Object other) {
+        if (other == null) {
+            return false;
+        }
         if(JsonFSEntry.class.isAssignableFrom(other.getClass())
                 &&  ((JsonFSEntry)other).value().equals(value())) {
             return true;
@@ -182,36 +205,43 @@ abstract public class JsonFSEntry<T> {
             }
         }
 
-        Class<?> cls = value.getClass();
-
         JsonFSEntry<?> entry;
-        if(String.class.isAssignableFrom(cls)) {
 
-            entry = new JsonFSString(path, (String)value);
-
-        } else if(Long.class.isAssignableFrom(cls)) {
-
-            entry = new JsonFSLong(path, (long)value);
-
-        }  else if(Double.class.isAssignableFrom(cls)) {
-
-            entry = new JsonFSDouble(path, (double)value);
-
-        } else if(Boolean.class.isAssignableFrom(cls)) {
-
-            entry = new JsonFSBoolean(path, (boolean)value);
-
-        } else if(List.class.isAssignableFrom(cls)) {
-
-            entry = new JsonFSArray(path, (List)value);
-
-        } else if(Map.class.isAssignableFrom(cls)) {
-
-            entry = new JsonFSObject(path, (Map)value);
+        if (value == null){
+            entry = new JsonFSNull(path, null);
         } else {
 
-            throw new JsonFSExcpetion("unsupported type " + cls.getName());
+            Class<?> cls = value.getClass();
+
+            if(String.class.isAssignableFrom(cls)) {
+
+                entry = new JsonFSString(path, (String)value);
+
+            } else if(Long.class.isAssignableFrom(cls)) {
+
+                entry = new JsonFSLong(path, (long)value);
+
+            }  else if(Double.class.isAssignableFrom(cls)) {
+
+                entry = new JsonFSDouble(path, (double)value);
+
+            } else if(Boolean.class.isAssignableFrom(cls)) {
+
+                entry = new JsonFSBoolean(path, (boolean)value);
+
+            } else if(List.class.isAssignableFrom(cls)) {
+
+                entry = new JsonFSArray(path, (List)value);
+
+            } else if(Map.class.isAssignableFrom(cls)) {
+
+                entry = new JsonFSObject(path, (Map)value);
+            } else {
+
+                throw new JsonFSExcpetion("unsupported type " + cls.getName());
+            }
         }
+
 
         return entry;
     }
