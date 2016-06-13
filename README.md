@@ -2,7 +2,7 @@
 file system backed json-like data structures in Java
 
 
-```
+```java
 
 JsonFS fs = new JsonFS("path/to/data");
 
