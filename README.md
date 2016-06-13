@@ -13,7 +13,7 @@ list.add("three");
 
 
 Map data = new HashMap<>();
-data.put("zero, list);
+data.put("zero", list);
 data.put("four", false);
 
 fs.object(data);
