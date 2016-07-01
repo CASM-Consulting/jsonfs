@@ -61,25 +61,22 @@ abstract public class JsonFSEntry<T> {
     abstract T value();
 
     void delete() {
-        try {
-            if(Files.exists(path.resolve(VALUE_FILE))){
-                Files.delete(path.resolve(VALUE_FILE));
-            }
-        } catch (IOException e) {
-            throw new JsonFSExcpetion(e);
-        }
-        try {
-            if(Files.exists(path.resolve(TYPE_FILE))){
-                Files.delete(path.resolve(TYPE_FILE));
-            }
-        } catch (IOException e) {
-            throw new JsonFSExcpetion(e);
-        }
-        try {
-            JsonFSUtil.deleteFileOrFolder(path);
-        } catch (IOException e) {
-            throw new JsonFSExcpetion(e);
-        }
+//        try {
+//            if(Files.exists(path.resolve(VALUE_FILE))){
+//                Files.delete(path.resolve(VALUE_FILE));
+//            }
+//        } catch (IOException e) {
+//            throw new JsonFSExcpetion(e);
+//        }
+//        try {
+//            if(Files.exists(path.resolve(TYPE_FILE))){
+//                Files.delete(path.resolve(TYPE_FILE));
+//            }
+//        } catch (IOException e) {
+//            throw new JsonFSExcpetion(e);
+//        }
+
+        JsonFSUtil.deleteFileOrFolder(path);
     }
 
     protected void assertType(Type expected) {

@@ -142,11 +142,8 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     public Object remove(Object key) {
         Object pre = get(key);
         if(pre != null) {
-            try {
-                JsonFSUtil.deleteFileOrFolder(path(key));
-            } catch (IOException e) {
-                //continue
-            }
+
+            JsonFSUtil.deleteFileOrFolder(path(key));
         }
         return pre;
     }
@@ -161,13 +158,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
         try {
             Files.walk(path, 1)
                     .filter(file->Files.isDirectory(file) && !file.equals(path))
-                    .forEach(file-> {
-                        try {
-                            JsonFSUtil.deleteFileOrFolder(file);
-                        } catch (IOException e) {
-                            //continue
-                        }
-                    });
+                    .forEach(JsonFSUtil::deleteFileOrFolder);
         } catch (IOException e) {
             //ignore
         }

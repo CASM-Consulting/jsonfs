@@ -67,6 +67,8 @@ public class JsonFSTest {
         obj.remove("hello");
 
         assertEquals(var, fs.get());
+
+        obj.put("one", null);
     }
 
 

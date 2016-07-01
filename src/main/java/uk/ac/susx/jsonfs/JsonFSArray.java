@@ -169,12 +169,8 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     public Object remove(int i) {
         Object prev = get(i);
 
-        try {
+        JsonFSUtil.deleteFileOrFolder(path.resolve(Integer.toString(i)));
 
-            JsonFSUtil.deleteFileOrFolder(path.resolve(Integer.toString(i)));
-        } catch (IOException e) {
-            //ignore
-        }
         return prev;
     }
 
