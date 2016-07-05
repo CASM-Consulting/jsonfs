@@ -92,5 +92,18 @@ public class JsonFSTest {
         assertEquals(var, fs.get());
     }
 
+    @Test
+    public void TestKeyPath() {
+
+        List list = new ArrayList<>();
+        Map map = new HashMap<>();
+        map.put("one", Arrays.asList(1l, 2l, "three"));
+        list.add(map);
+
+        JsonFSArray object = fs.array(list);
+        var = object;
+
+        assertEquals("three", object.get(0,"one",2));
+    }
 
 }

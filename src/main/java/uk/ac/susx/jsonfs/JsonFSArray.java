@@ -147,6 +147,30 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
         return get(valPath).value();
     }
 
+
+    public Object get(Object... keys) {
+
+        if(keys.length > 1) {
+            Object key = keys[0];
+            Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+
+            JsonFSEntry<?> entry = get(keyPath);
+
+            if(entry.type().equals(Type.OBJECT)) {
+                keys = Arrays.copyOfRange(keys,1, keys.length);
+                return ((JsonFSObject)entry).get(keys);
+            } else if(entry.type().equals(Type.ARRAY)) {
+                keys = Arrays.copyOfRange(keys,1, keys.length);
+                return ((JsonFSArray)entry).get(keys);
+            } else {
+                throw new JsonFSExcpetion(key + " does not hold an object.");
+            }
+
+        } else {
+            return get((int)keys[0]);
+        }
+    }
+
     @Override
     public Object set(int index, Object element) {
         return null;
