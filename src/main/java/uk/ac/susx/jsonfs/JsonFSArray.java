@@ -42,7 +42,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
 
     @Override
-    void delete() {
+    public void delete() {
         clear();
         super.delete();
     }

@@ -73,7 +73,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     }
 
 
-    void delete() {
+    public void delete() {
         clear();
         super.delete();
     }

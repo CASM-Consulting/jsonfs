@@ -60,7 +60,7 @@ abstract public class JsonFSEntry<T> {
 
     abstract T value();
 
-    void delete() {
+    public void delete() {
 //        try {
 //            if(Files.exists(path.resolve(VALUE_FILE))){
 //                Files.delete(path.resolve(VALUE_FILE));
