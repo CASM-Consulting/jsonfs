@@ -138,6 +138,11 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     @Override
     public Object put(String key, Object value) {
+
+        if(key.equals(VALUE_FILE) || key.equals(TYPE_FILE)) {
+            throw new UnsupportedOperationException(VALUE_FILE + " and " + TYPE_FILE + " are not allowed as keys.");
+        }
+
         Path keyPath = path(key);
 
         Object prev;

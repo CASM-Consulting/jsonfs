@@ -6,7 +6,7 @@
 
     <groupId>uk.ac.susx.tag</groupId>
     <artifactId>jsonfs</artifactId>
-    <version>0.1.4</version>
+    <version>0.1.5</version>
 
     <properties>
         <junit.version>4.11</junit.version>

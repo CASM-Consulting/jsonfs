@@ -19,8 +19,8 @@ import java.util.function.Function;
  */
 abstract public class JsonFSEntry<T> {
 
-    protected static final Path TYPE_FILE = Paths.get("type");
-    protected static Path VALUE_FILE = Paths.get("value");
+    protected static final Path TYPE_FILE = Paths.get("__type__");
+    protected static Path VALUE_FILE = Paths.get("__value__");
 
     enum Type {
         STRING,
