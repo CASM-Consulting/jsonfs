@@ -19,10 +19,10 @@ abstract public class JsonFSPrimitiveEntry<T> extends JsonFSEntry<T> {
     }
 
     protected T value(Function<String, T> converter) {
-        return data(path.resolve(VALUE_FILE), converter, (v)->v);
+        return data(path.resolve(VALUE_FILE), converter, (v)->v, LockOption.READ);
     }
 
     protected void value(Function<String, T> converter, T val) {
-        data(path.resolve(VALUE_FILE), converter, (v)->val);
+        data(path.resolve(VALUE_FILE), converter, (v)->val, LockOption.WRITE);
     }
 }

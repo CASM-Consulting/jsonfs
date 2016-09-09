@@ -3,15 +3,13 @@ package uk.ac.susx.jsonfs;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.channels.*;
+import java.nio.file.*;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
 /**
@@ -20,7 +18,8 @@ import java.util.function.Function;
 abstract public class JsonFSEntry<T> {
 
     protected static final Path TYPE_FILE = Paths.get("__type__");
-    protected static Path VALUE_FILE = Paths.get("__value__");
+    protected static final Path VALUE_FILE = Paths.get("__value__");
+    protected static final Path LOCK_FILE = Paths.get("__lock__");
 
     enum Type {
         STRING,
@@ -31,6 +30,14 @@ abstract public class JsonFSEntry<T> {
         ARRAY,
         OBJECT
     }
+
+
+    enum LockOption {
+        READ,
+        WRITE
+    }
+
+    private final static Map<Path, ReentrantReadWriteLock> LOCKS = new WeakHashMap<>();
 
     protected final Path path;
 
@@ -44,16 +51,27 @@ abstract public class JsonFSEntry<T> {
 
     protected JsonFSEntry(Path path, Type type, T value) {
         this.path = path;
-        if(!Files.exists(path.resolve(TYPE_FILE))) {
-            try {
 
-                Files.createFile(path.resolve(TYPE_FILE));
-            } catch (IOException e) {
-                throw new JsonFSExcpetion(e);
-            }
+        ensureExists(path.resolve(TYPE_FILE));
+        ensureExists(path.resolve(VALUE_FILE));
+        ensureExists(path.resolve(LOCK_FILE));
+
+        lock(path.resolve(LOCK_FILE), c->{
+            type(type);
+            value(value);
+            return null;
+        }, LockOption.WRITE);
+    }
+
+    private void ensureExists(Path path) {
+        try {
+
+            Files.createFile(path);
+        } catch (FileAlreadyExistsException e) {
+
+        } catch (IOException e) {
+            throw new JsonFSExcpetion(e);
         }
-        type(type);
-        value(value);
     }
 
     abstract void value(T value);
@@ -61,22 +79,12 @@ abstract public class JsonFSEntry<T> {
     abstract T value();
 
     public void delete() {
-//        try {
-//            if(Files.exists(path.resolve(VALUE_FILE))){
-//                Files.delete(path.resolve(VALUE_FILE));
-//            }
-//        } catch (IOException e) {
-//            throw new JsonFSExcpetion(e);
-//        }
-//        try {
-//            if(Files.exists(path.resolve(TYPE_FILE))){
-//                Files.delete(path.resolve(TYPE_FILE));
-//            }
-//        } catch (IOException e) {
-//            throw new JsonFSExcpetion(e);
-//        }
 
-        JsonFSUtil.deleteFileOrFolder(path);
+        lock(path.resolve(LOCK_FILE), (c)->{
+            JsonFSUtil.deleteFileOrFolder(path);
+            return null;
+        }, LockOption.WRITE);
+
     }
 
     protected void assertType(Type expected) {
@@ -87,15 +95,14 @@ abstract public class JsonFSEntry<T> {
     }
 
     protected void type(Type type) {
-        data(path.resolve(TYPE_FILE), Type::valueOf, (t)->type);
+        data(path.resolve(TYPE_FILE), Type::valueOf, (t)->type, LockOption.WRITE);
     }
 
     protected Type type() {
-        return data(path.resolve(TYPE_FILE), Type::valueOf, (t)->t);
+        return data(path.resolve(TYPE_FILE), Type::valueOf, (t)->t, LockOption.READ);
     }
 
-    protected static <T> T data(Path path, Function<String, T> convert, Function<T, T> fn) {
-
+    protected static <T> T data(Path path, Function<String, T> convert, Function<T, T> fn, LockOption lock) {
 
         return lock(path, channel->{
             BufferedReader reader = new BufferedReader(Channels.newReader(channel, "UTF-8"));
@@ -123,21 +130,82 @@ abstract public class JsonFSEntry<T> {
             }
 
             return result;
-        });
+        }, lock);
 
     }
 
-    protected static <T> T lock(Path path, FileChannelFn<T> fn) {
+    protected static <T> T lock(Path path, FileChannelFn<T> fn, LockOption lockOption) {
+
+        Path lockPath = path.subpath(0, path.getNameCount()-1).resolve(LOCK_FILE);
+
+        T result;
+
         try (
-                FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+                FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
                 FileLock ignored = channel.lock();
         ) {
-            T result = fn.apply(channel);
-            return result;
+
+            result = lock(path, lockPath, lockOption, fn);
+
+        } catch (NoSuchFileException e){
+
+            result = null;
+        } catch (OverlappingFileLockException e){
+
+            try {
+                result = lock(path,lockPath, lockOption, fn);
+            } catch (IOException e2) {
+                throw new JsonFSExcpetion(e2);
+            }
 
         } catch (IOException e){
             throw new JsonFSExcpetion(e);
         }
+
+        return result;
+    }
+
+    private static <T> T lock(Path path, Path lockPath, LockOption option, FileChannelFn<T> fn) throws IOException {
+
+        Lock lock;
+
+        ReentrantReadWriteLock readWriteLock;
+        synchronized (LOCKS) {
+            readWriteLock  = LOCKS.get(lockPath);
+            if(readWriteLock == null){
+                readWriteLock = new ReentrantReadWriteLock();
+                LOCKS.put(lockPath, readWriteLock);
+            }
+        }
+
+        switch (option) {
+            case READ: {
+                lock = readWriteLock.readLock();
+                break;
+            }
+            case WRITE: {
+                lock = readWriteLock.writeLock();
+                break;
+            }
+            default: {
+                lock = readWriteLock.writeLock();
+                break;
+            }
+        }
+
+        try (
+                FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+        ) {
+//            System.out.println(lockPath + option.toString() + " locked");
+            lock.lock();
+            T result = fn.apply(channel);
+            return result;
+        } finally {
+            lock.unlock();
+//            System.out.println(lockPath + option.toString() + " unlocked");
+        }
+
+
     }
 
     protected interface FileChannelFn<T> {
@@ -158,9 +226,14 @@ abstract public class JsonFSEntry<T> {
         }
     }
 
+    @Override
+    public int hashCode() {
+        return value().hashCode();
+    }
+
     public static JsonFSEntry<?> get(Path path) {
 
-        Type type = data(path.resolve(TYPE_FILE), Type::valueOf, (t)->t);
+        Type type = data(path.resolve(TYPE_FILE), Type::valueOf, (t)->t, LockOption.READ);
 
         JsonFSEntry<?> entry;
 

@@ -23,10 +23,10 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
         lock(path.resolve(VALUE_FILE), channel->{
 
             for(int i = 0 ; i < value.size(); ++i) {
-                add(i, value.get(i));
+                add(value.get(i));
             }
             return value;
-        });
+        }, LockOption.WRITE);
     }
 
     @Override
@@ -37,7 +37,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
                 list.add(get(i));
             }
             return list;
-        });
+        }, LockOption.READ);
     }
 
 
@@ -87,18 +87,22 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     public boolean add(Object value) {
-        int i = size();
+        return lock(path.resolve(LOCK_FILE), c ->{
 
-        add(i, value);
+            int i = size();
 
-        return true;
+            set(i, value);
+
+            return true;
+        }, LockOption.READ);
     }
 
 
     @Override
     public boolean remove(Object o) {
-
-        return remove(indexOf(o))!=null;
+        return lock(path.resolve(LOCK_FILE), c->{
+            return remove(indexOf(o))!=null;
+        },LockOption.READ);
     }
 
     @Override
@@ -107,19 +111,27 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     }
 
     @Override
-    public boolean addAll(Collection<? extends Object> c) {
-        for(Object item : c) {
-            add(item);
-        }
-        return c.size()>0;
+    public boolean addAll(Collection<? extends Object> col) {
+        return lock(path.resolve(LOCK_FILE), c->{
+
+            for(Object item : col) {
+                add(item);
+            }
+            return c.size()>0;
+        }, LockOption.READ);
     }
 
     @Override
-    public boolean addAll(int index, Collection<? extends Object> c) {
-        for(Object item : c) {
-            add(index++, item);
-        }
-        return c.size()>0;
+    public boolean addAll(final int index, Collection<? extends Object> col) {
+        return lock(path.resolve(LOCK_FILE), c->{
+
+            int i = index;
+            for(Object item : col) {
+                add(i++, item);
+            }
+            return c.size()>0;
+
+        }, LockOption.READ);
     }
 
     @Override
@@ -142,60 +154,108 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     @Override
     public Object get(int i) {
 
-        Path valPath = path.resolve(Integer.toString(i));
+        return lock(path.resolve(LOCK_FILE), c->{
+            Path valPath = path.resolve(Integer.toString(i));
 
-        return get(valPath).value();
+            return get(valPath).value();
+        }, LockOption.READ);
     }
 
 
     public Object get(Object... keys) {
 
-        if(keys.length > 1) {
-            Object key = keys[0];
-            Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+        return lock(path.resolve(LOCK_FILE), c->{
+            if(keys.length > 1) {
+                Object key = keys[0];
+                Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 
-            JsonFSEntry<?> entry = get(keyPath);
+                JsonFSEntry<?> entry = get(keyPath);
 
-            if(entry.type().equals(Type.OBJECT)) {
-                keys = Arrays.copyOfRange(keys,1, keys.length);
-                return ((JsonFSObject)entry).get(keys);
-            } else if(entry.type().equals(Type.ARRAY)) {
-                keys = Arrays.copyOfRange(keys,1, keys.length);
-                return ((JsonFSArray)entry).get(keys);
+                if(entry.type().equals(Type.OBJECT)) {
+                    return ((JsonFSObject)entry).get(Arrays.copyOfRange(keys,1, keys.length));
+                } else if(entry.type().equals(Type.ARRAY)) {
+                    return ((JsonFSArray)entry).get(Arrays.copyOfRange(keys,1, keys.length));
+                } else {
+                    throw new JsonFSExcpetion(key + " does not hold an object.");
+                }
+
             } else {
-                throw new JsonFSExcpetion(key + " does not hold an object.");
+                return get((int)keys[0]);
             }
+        }, LockOption.READ);
+    }
 
-        } else {
-            return get((int)keys[0]);
-        }
+    public JsonFSEntry getJson(int i) {
+
+        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c)->{
+
+            Path keyPath = path.resolve(Integer.toString(i));
+
+            if(Files.exists(keyPath)) {
+                JsonFSEntry entry = get(keyPath);
+                return entry.type().equals(Type.NULL) ? null : entry;
+            } else {
+                return null;
+            }
+        }, LockOption.READ);
     }
 
     @Override
-    public Object set(int index, Object element) {
-        return null;
+    public Object set(int i, Object value) {
+        return lock(path.resolve(LOCK_FILE), c->{
+
+            Path valPath = path.resolve(Integer.toString(i));
+
+            try {
+                Files.createDirectories(valPath);
+            } catch (IOException e ){
+                throw new JsonFSExcpetion(e);
+            }
+
+            make(valPath, value);
+
+            return null;
+
+        }, LockOption.READ);
     }
 
     @Override
     public void add(int i, Object value) {
-        Path valPath = path.resolve(Integer.toString(i));
+        lock(path.resolve(LOCK_FILE), c->{
 
-        try {
-            Files.createDirectories(valPath);
-        } catch (IOException e ){
-            throw new JsonFSExcpetion(e);
-        }
+            for(int j = size()-1; j >= i; --j){
+                Path from = path.resolve(Integer.toString(j));
+                Path to = path.resolve(Integer.toString(j+1));
+                Files.move(from, to);
+            }
 
-        make(valPath, value);
+            Path valPath = path.resolve(Integer.toString(i));
+
+            try {
+                Files.createDirectories(valPath);
+            } catch (IOException e ){
+                throw new JsonFSExcpetion(e);
+            }
+
+            make(valPath, value);
+
+            return null;
+
+        }, LockOption.WRITE);
     }
 
     @Override
     public Object remove(int i) {
-        Object prev = get(i);
 
-        JsonFSUtil.deleteFileOrFolder(path.resolve(Integer.toString(i)));
+        return lock(path.resolve(LOCK_FILE), c->{
 
-        return prev;
+            Object prev = get(i);
+
+//            JsonFSUtil.deleteFileOrFolder(path.resolve(Integer.toString(i)));
+            get(path.resolve(Integer.toString(i))).delete();
+
+            return prev;
+        }, LockOption.READ);
     }
 
     @Override

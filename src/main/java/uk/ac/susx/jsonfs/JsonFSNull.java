@@ -21,7 +21,7 @@ public class JsonFSNull extends JsonFSPrimitiveEntry<Void> {
 
     @Override
     void value(Void value) {
-        data(path.resolve(VALUE_FILE), (String s)->(Void)null, (v)->v);
+        data(path.resolve(VALUE_FILE), (String s)->(Void)null, (v)->v, LockOption.WRITE);
         try {
             Files.walk(path, 1)
                     .filter(file->Files.isDirectory(file) && !file.equals(path))

@@ -1,11 +1,17 @@
 package uk.ac.susx.jsonfs;
 
+import com.sun.management.UnixOperatingSystemMXBean;
+
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by sw206 on 10/06/2016.
@@ -76,8 +82,58 @@ public class JsonFS {
         return new JsonFSArray(root, val);
     }
 
+    public JsonFSArray array() {
+        return new JsonFSArray(root);
+    }
+
     public JsonFSEntry<?> get(){
         return JsonFSEntry.get(root);
     }
 
+    public static void main(String[] args) {
+
+        JsonFSObject obj = new JsonFS("test").object();
+
+        AtomicBoolean running = new AtomicBoolean(true);
+
+        AtomicInteger n1 = new AtomicInteger(0);
+        AtomicInteger n2 = new AtomicInteger(0);
+
+        new Thread(()->{
+
+            int i = 0;
+            while(running.get()) {
+
+                obj.put(i+"", i);
+
+                if( i > 10) {
+                    i = 0;
+                }
+                ++i;
+//                System.out.println(n1.incrementAndGet());
+//                try { Thread.sleep(100); } catch (InterruptedException e) {}
+            }
+
+        }).start();
+
+        new Thread(()->{
+
+            int i = 0;
+            while(running.get()) {
+
+                obj.put(i+"", i);
+
+                if( i > 10) {
+                    i = 0;
+                }
+                ++i;
+//                System.out.println(n2.incrementAndGet());
+//                try { Thread.sleep(100); } catch (InterruptedException e) {}
+            }
+
+        }).run();
+
+//        Thread.sleep(5000);
+//        running.set(false);
+    }
 }

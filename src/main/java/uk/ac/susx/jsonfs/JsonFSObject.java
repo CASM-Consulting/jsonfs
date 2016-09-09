@@ -42,7 +42,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
                 put(entry.getKey().replaceAll("/", "\\\\"), entry.getValue());
             }
             return value;
-        });
+        }, LockOption.WRITE);
 
     }
 
@@ -69,7 +69,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
             }catch (IOException e) {
                 throw new JsonFSExcpetion(e);
             }
-        });
+        }, LockOption.READ);
     }
 
 
@@ -102,78 +102,112 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     @Override
     public Object get(Object key) {
 
-        Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+        return lock(path.resolve(LOCK_FILE), (c)->{
 
-        if(Files.exists(keyPath)) {
-            JsonFSEntry entry = get(keyPath);
-            return entry.type().equals(Type.NULL) ? null : entry.value();
-        } else {
-            return null;
-        }
-
-    }
-
-    public Object get(Object... keys) {
-
-        if(keys.length > 1) {
-            Object key = keys[0];
             Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 
-            JsonFSEntry<?> entry = get(keyPath);
-
-            if(entry.type().equals(Type.OBJECT)) {
-                keys = Arrays.copyOfRange(keys,1, keys.length);
-                return ((JsonFSObject)entry).get(keys);
-            } else if(entry.type().equals(Type.ARRAY)) {
-                keys = Arrays.copyOfRange(keys,1, keys.length);
-                return ((JsonFSArray)entry).get(keys);
+            if(Files.exists(keyPath)) {
+                JsonFSEntry entry = get(keyPath);
+                return entry.type().equals(Type.NULL) ? null : entry.value();
             } else {
-                throw new JsonFSExcpetion(key + " does not hold an object.");
+                return null;
             }
 
-        } else {
-            return get(keys[0]);
-        }
+        }, LockOption.READ);
     }
+
+    public Object get(final Object... keys) {
+
+        return lock(path.resolve(LOCK_FILE), (c)->{
+
+            if(keys.length > 1) {
+                Object key = keys[0];
+                Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+
+                JsonFSEntry<?> entry = get(keyPath);
+
+                if(entry.type().equals(Type.OBJECT)) {
+                    return ((JsonFSObject)entry).get(Arrays.copyOfRange(keys,1, keys.length));
+                } else if(entry.type().equals(Type.ARRAY)) {
+                    return ((JsonFSArray)entry).get(Arrays.copyOfRange(keys,1, keys.length));
+                } else {
+                    throw new JsonFSExcpetion(key + " does not hold an object.");
+                }
+
+            } else {
+                return get(keys[0]);
+            }
+        }, LockOption.READ);
+    }
+
+
+    public JsonFSEntry getJson(Object key) {
+
+        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c)->{
+
+            Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+
+            if(Files.exists(keyPath)) {
+                JsonFSEntry entry = get(keyPath);
+                return entry.type().equals(Type.NULL) ? null : entry;
+            } else {
+                return null;
+            }
+
+        }, LockOption.READ);
+    }
+
 
     @Override
     public Object put(String key, Object value) {
 
-        if(key.equals(VALUE_FILE) || key.equals(TYPE_FILE)) {
-            throw new UnsupportedOperationException(VALUE_FILE + " and " + TYPE_FILE + " are not allowed as keys.");
-        }
+        return lock(path.resolve(LOCK_FILE), (c)->{
 
-        Path keyPath = path(key);
+            if(key.equals(VALUE_FILE) || key.equals(TYPE_FILE) || key.equals(LOCK_FILE)) {
+                throw new UnsupportedOperationException(VALUE_FILE + " and " + TYPE_FILE + " and " + LOCK_FILE + " are not allowed as keys.");
+            }
 
-        Object prev;
-        try {
+            Path keyPath = path(key);
 
-            prev = get(key);
-        } catch (JsonFSExcpetion | NullPointerException e) {
-            prev = null;
-        }
+            Object prev;
+            try {
 
+                prev = get(key);
+            } catch (JsonFSExcpetion | NullPointerException e) {
+                prev = null;
+            }
 
-        try {
-            Files.createDirectories(keyPath);
-        } catch (IOException e ){
-            throw new JsonFSExcpetion(e);
-        }
+            if( prev != null && prev.equals(value)) {
 
-        make(keyPath, value);
+                return value;
 
+            } else {
 
-        return prev;
+                try {
+                    Files.createDirectories(keyPath);
+                } catch (IOException e ){
+                    throw new JsonFSExcpetion(e);
+                }
+
+                make(keyPath, value);
+            }
+
+            return prev;
+
+        }, LockOption.READ);
     }
 
     @Override
     public Object remove(Object key) {
-        Object pre = get(key);
-        if(pre != null) {
+        return lock(path(key).resolve(LOCK_FILE), c -> {
+            Object pre = get(key);
+            if(pre != null) {
 
-            JsonFSUtil.deleteFileOrFolder(path(key));
-        }
-        return pre;
+                JsonFSUtil.deleteFileOrFolder(path(key));
+            }
+            return pre;
+
+        }, LockOption.WRITE);
     }
 
     @Override
@@ -183,13 +217,17 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     @Override
     public void clear() {
-        try {
-            Files.walk(path, 1)
-                    .filter(file->Files.isDirectory(file) && !file.equals(path))
-                    .forEach(JsonFSUtil::deleteFileOrFolder);
-        } catch (IOException e) {
-            //ignore
-        }
+        lock(path.resolve(LOCK_FILE), (c)->{
+            try {
+                Files.walk(path, 1)
+                        .filter(file->Files.isDirectory(file) && !file.equals(path))
+//                        .forEach(JsonFSUtil::deleteFileOrFolder);
+                        .forEach(p->get(p).delete());
+            } catch (IOException e) {
+                //ignore
+            }
+            return null;
+        }, LockOption.WRITE);
     }
 
     @Override
