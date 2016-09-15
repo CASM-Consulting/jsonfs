@@ -19,8 +19,9 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     }
 
     @Override
-    void value(List value) {
-        lock(path.resolve(VALUE_FILE), channel->{
+    public void value(List value) {
+        lock(path.resolve(VALUE_FILE), (c, l)->{
+            clear();
 
             for(int i = 0 ; i < value.size(); ++i) {
                 add(value.get(i));
@@ -30,8 +31,8 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     }
 
     @Override
-    List value() {
-        return (List)lock(path.resolve(VALUE_FILE), channel->{
+    public List value() {
+        return (List)lock(path.resolve(VALUE_FILE), (c, l)->{
             List list = new ArrayList<>();
             for(int i = 0; i < size(); ++i){
                 list.add(get(i));
@@ -87,22 +88,27 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     public boolean add(Object value) {
-        return lock(path.resolve(LOCK_FILE), c ->{
+        return lock(path.resolve(LOCK_FILE), (c, l) ->{
 
             int i = size();
 
             set(i, value);
 
             return true;
-        }, LockOption.READ);
+        }, LockOption.WRITE);
     }
 
 
     @Override
     public boolean remove(Object o) {
-        return lock(path.resolve(LOCK_FILE), c->{
-            return remove(indexOf(o))!=null;
-        },LockOption.READ);
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
+            int idx = indexOf(o);
+            if(idx == -1) {
+                return false;
+            } else {
+                return remove(idx)!=null;
+            }
+        },LockOption.WRITE);
     }
 
     @Override
@@ -112,26 +118,29 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     public boolean addAll(Collection<? extends Object> col) {
-        return lock(path.resolve(LOCK_FILE), c->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
-            for(Object item : col) {
+            for (Object item : col) {
                 add(item);
             }
+
             return c.size()>0;
-        }, LockOption.READ);
+        }, LockOption.WRITE);
     }
 
     @Override
     public boolean addAll(final int index, Collection<? extends Object> col) {
-        return lock(path.resolve(LOCK_FILE), c->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             int i = index;
-            for(Object item : col) {
+            for (Object item : col) {
                 add(i++, item);
             }
+            l.lock();
+
             return c.size()>0;
 
-        }, LockOption.READ);
+        }, LockOption.WRITE);
     }
 
     @Override
@@ -154,7 +163,11 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     @Override
     public Object get(int i) {
 
-        return lock(path.resolve(LOCK_FILE), c->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
+
+            if(i < 0 || i >= size()) {
+                throw new IndexOutOfBoundsException("index " + i + " is out of range.");
+            }
             Path valPath = path.resolve(Integer.toString(i));
 
             return get(valPath).value();
@@ -164,7 +177,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     public Object get(Object... keys) {
 
-        return lock(path.resolve(LOCK_FILE), c->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
             if(keys.length > 1) {
                 Object key = keys[0];
                 Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
@@ -187,7 +200,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     public JsonFSEntry getJson(int i) {
 
-        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c)->{
+        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path keyPath = path.resolve(Integer.toString(i));
 
@@ -202,7 +215,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     public Object set(int i, Object value) {
-        return lock(path.resolve(LOCK_FILE), c->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path valPath = path.resolve(Integer.toString(i));
 
@@ -221,7 +234,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
 
     @Override
     public void add(int i, Object value) {
-        lock(path.resolve(LOCK_FILE), c->{
+        lock(path.resolve(LOCK_FILE), (c, l)->{
 
             for(int j = size()-1; j >= i; --j){
                 Path from = path.resolve(Integer.toString(j));
@@ -247,7 +260,7 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
     @Override
     public Object remove(int i) {
 
-        return lock(path.resolve(LOCK_FILE), c->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Object prev = get(i);
 

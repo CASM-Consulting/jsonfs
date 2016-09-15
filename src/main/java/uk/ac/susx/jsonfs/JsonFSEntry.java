@@ -43,6 +43,9 @@ abstract public class JsonFSEntry<T> {
 
     public JsonFSEntry(Path path) {
         this.path = path;
+        ensureExists(path.resolve(TYPE_FILE));
+        ensureExists(path.resolve(VALUE_FILE));
+        ensureExists(path.resolve(LOCK_FILE));
     }
 
     protected JsonFSEntry(Path path, Type type, JsonFSEntry<T> value) {
@@ -50,13 +53,9 @@ abstract public class JsonFSEntry<T> {
     }
 
     protected JsonFSEntry(Path path, Type type, T value) {
-        this.path = path;
+        this(path);
 
-        ensureExists(path.resolve(TYPE_FILE));
-        ensureExists(path.resolve(VALUE_FILE));
-        ensureExists(path.resolve(LOCK_FILE));
-
-        lock(path.resolve(LOCK_FILE), c->{
+        lock(path.resolve(LOCK_FILE), (c, l)->{
             type(type);
             value(value);
             return null;
@@ -74,13 +73,13 @@ abstract public class JsonFSEntry<T> {
         }
     }
 
-    abstract void value(T value);
+    public abstract void value(T value);
 
-    abstract T value();
+    public abstract T value();
 
     public void delete() {
 
-        lock(path.resolve(LOCK_FILE), (c)->{
+        lock(path.resolve(LOCK_FILE), (c, l)->{
             JsonFSUtil.deleteFileOrFolder(path);
             return null;
         }, LockOption.WRITE);
@@ -104,7 +103,7 @@ abstract public class JsonFSEntry<T> {
 
     protected static <T> T data(Path path, Function<String, T> convert, Function<T, T> fn, LockOption lock) {
 
-        return lock(path, channel->{
+        return lock(path, (channel, l)->{
             BufferedReader reader = new BufferedReader(Channels.newReader(channel, "UTF-8"));
 
             T val;
@@ -134,7 +133,7 @@ abstract public class JsonFSEntry<T> {
 
     }
 
-    protected static <T> T lock(Path path, FileChannelFn<T> fn, LockOption lockOption) {
+    protected static <T> T lock(Path path, LockedFileChannelFn<T> fn, LockOption lockOption) {
 
         Path lockPath = path.subpath(0, path.getNameCount()-1).resolve(LOCK_FILE);
 
@@ -165,7 +164,7 @@ abstract public class JsonFSEntry<T> {
         return result;
     }
 
-    private static <T> T lock(Path path, Path lockPath, LockOption option, FileChannelFn<T> fn) throws IOException {
+    private static <T> T lock(Path path, Path lockPath, LockOption option, LockedFileChannelFn<T> fn) throws IOException {
 
         Lock lock;
 
@@ -198,7 +197,7 @@ abstract public class JsonFSEntry<T> {
         ) {
 //            System.out.println(lockPath + option.toString() + " locked");
             lock.lock();
-            T result = fn.apply(channel);
+            T result = fn.apply(channel, lock);
             return result;
         } finally {
             lock.unlock();
@@ -208,9 +207,9 @@ abstract public class JsonFSEntry<T> {
 
     }
 
-    protected interface FileChannelFn<T> {
+    protected interface LockedFileChannelFn<T> {
 
-        T apply(FileChannel c) throws IOException;
+        T apply(FileChannel c, Lock l) throws IOException;
 
     }
 

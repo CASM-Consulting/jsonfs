@@ -26,10 +26,10 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     }
 
     @Override
-    void value(Map<String,Object> value) {
+    public void value(Map<String,Object> value) {
 
 
-        lock(path.resolve(VALUE_FILE), channel -> {
+        lock(path.resolve(VALUE_FILE), (c, l) -> {
             Set<String> cur = keySet();
 
             cur.removeAll(value.keySet());
@@ -48,9 +48,9 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
 
     @Override
-    Map value() {
+    public Map value() {
 
-        return (Map)lock(path.resolve(VALUE_FILE), channel -> {
+        return (Map)lock(path.resolve(VALUE_FILE), (c, l) -> {
             try {
                 List<Path> paths = Files.walk(path, 1)
                         .filter(file->Files.isDirectory(file) && !file.equals(path))
@@ -102,7 +102,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     @Override
     public Object get(Object key) {
 
-        return lock(path.resolve(LOCK_FILE), (c)->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 
@@ -118,7 +118,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     public Object get(final Object... keys) {
 
-        return lock(path.resolve(LOCK_FILE), (c)->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             if(keys.length > 1) {
                 Object key = keys[0];
@@ -143,7 +143,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     public JsonFSEntry getJson(Object key) {
 
-        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c)->{
+        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 
@@ -161,7 +161,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     @Override
     public Object put(String key, Object value) {
 
-        return lock(path.resolve(LOCK_FILE), (c)->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             if(key.equals(VALUE_FILE) || key.equals(TYPE_FILE) || key.equals(LOCK_FILE)) {
                 throw new UnsupportedOperationException(VALUE_FILE + " and " + TYPE_FILE + " and " + LOCK_FILE + " are not allowed as keys.");
@@ -199,7 +199,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     @Override
     public Object remove(Object key) {
-        return lock(path(key).resolve(LOCK_FILE), c -> {
+        return lock(path(key).resolve(LOCK_FILE), (c, l) -> {
             Object pre = get(key);
             if(pre != null) {
 
@@ -217,7 +217,7 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     @Override
     public void clear() {
-        lock(path.resolve(LOCK_FILE), (c)->{
+        lock(path.resolve(LOCK_FILE), (c, l)->{
             try {
                 Files.walk(path, 1)
                         .filter(file->Files.isDirectory(file) && !file.equals(path))

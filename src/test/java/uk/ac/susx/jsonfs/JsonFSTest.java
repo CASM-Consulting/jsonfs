@@ -76,8 +76,6 @@ public class JsonFSTest {
         obj.remove("hello");
 
         assertEquals(var, fs.get());
-
-        obj.put("one", null);
     }
 
 
@@ -231,13 +229,12 @@ public class JsonFSTest {
         };
 
         new Thread(runnable).start();
-        obj.remove("badgers");
 
 
-//
-//        Thread.sleep(1000);
-//        running.set(false);
-//        Thread.sleep(1000);
+
+        Thread.sleep(1000);
+        running.set(false);
+        Thread.sleep(1000);
     }
 
     @Test
@@ -254,6 +251,19 @@ public class JsonFSTest {
         Assert.assertEquals("and", array.get(0));
 
         Assert.assertEquals(3l, array.get(3));
+
+    }
+
+    @Test
+    public void arrayTestSet() {
+
+        var = fs.array();
+
+        JsonFSArray array = (JsonFSArray)var;
+
+        array.set(2, 2);
+
+        Assert.assertEquals(2l, array.get(2));
 
     }
 }

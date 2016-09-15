@@ -13,13 +13,13 @@ public class    JsonFSDouble extends JsonFSPrimitiveEntry<Double> {
         super(path, Type.DOUBLE, value);
     }
     @Override
-    void value(Double value) {
+    public void value(Double value) {
         value(Double::parseDouble, value);
     }
 
 
     @Override
-    Double value() {
+    public Double value() {
         return value(Double::parseDouble);
     }
 }

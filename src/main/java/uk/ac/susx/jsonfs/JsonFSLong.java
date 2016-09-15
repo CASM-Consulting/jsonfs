@@ -13,13 +13,13 @@ public class JsonFSLong extends JsonFSPrimitiveEntry<Long> {
         super(path, Type.LONG, value);
     }
     @Override
-    void value(Long value) {
+    public void value(Long value) {
         value(Long::parseLong, value);
     }
 
 
     @Override
-    Long value() {
+    public Long value() {
         return value(Long::parseLong);
     }
 }

@@ -20,7 +20,7 @@ public class JsonFSNull extends JsonFSPrimitiveEntry<Void> {
     }
 
     @Override
-    void value(Void value) {
+    public void value(Void value) {
         data(path.resolve(VALUE_FILE), (String s)->(Void)null, (v)->v, LockOption.WRITE);
         try {
             Files.walk(path, 1)
@@ -33,7 +33,7 @@ public class JsonFSNull extends JsonFSPrimitiveEntry<Void> {
     }
 
     @Override
-    Void value() {
+    public Void value() {
         return null;
     }
 }

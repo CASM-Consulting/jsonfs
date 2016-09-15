@@ -16,13 +16,13 @@ public class JsonFSString extends JsonFSPrimitiveEntry<String> {
     }
 
     @Override
-    void value(String value) {
+    public void value(String value) {
         value(String::toString, value);
     }
 
 
     @Override
-    String value() {
+    public String value() {
         return value(String::toString);
     }
 

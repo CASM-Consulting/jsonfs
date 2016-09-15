@@ -11,12 +11,12 @@ public class JsonFSBoolean extends JsonFSPrimitiveEntry<Boolean> {
     }
 
     @Override
-    void value(Boolean value) {
+    public void value(Boolean value) {
         value(Boolean::parseBoolean, value);
     }
 
     @Override
-    Boolean value() {
+    public Boolean value() {
         return value(Boolean::parseBoolean);
     }
 
