@@ -90,13 +90,12 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     @Override
     public boolean containsKey(Object key) {
-
-        return Files.exists(path(key));
+        return lock(path.resolve(LOCK_FILE), (c,l) -> Files.exists(path(key)), LockOption.READ);
     }
 
     @Override
     public boolean containsValue(Object value) {
-        return value().containsValue(value);
+        return lock(path.resolve(LOCK_FILE), (c,l) -> value().containsValue(value), LockOption.READ);
     }
 
     @Override
