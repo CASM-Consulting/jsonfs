@@ -9,7 +9,7 @@
     <version>0.1.10</version>
 
     <properties>
-        <guava-testlib.version>13.0</guava-testlib.version>
+        <guava-testlib.version>20.0</guava-testlib.version>
     </properties>
 
     <parent>
