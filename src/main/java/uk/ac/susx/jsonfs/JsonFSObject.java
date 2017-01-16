@@ -142,12 +142,12 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
 
     public <T extends JsonFSEntry> T getJson(Object key) {
 
-        return (T)lock(path.resolve(LOCK_FILE), (c, l)->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 
             if(Files.exists(keyPath)) {
-                JsonFSEntry entry = get(keyPath);
+                T entry = (T)get(keyPath);
                 return entry.type().equals(Type.NULL) ? null : entry;
             } else {
                 return null;
@@ -156,6 +156,31 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
         }, LockOption.READ);
     }
 
+
+    public <T extends JsonFSEntry<?>> T getJson(final Object... keys) {
+
+
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
+
+            if(keys.length > 1) {
+                Object key = keys[0];
+                Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+
+                T entry = (T)get(keyPath);
+
+                if(entry.type().equals(Type.OBJECT)) {
+                    return ((JsonFSObject)entry).getJson(Arrays.copyOfRange(keys,1, keys.length));
+                } else if(entry.type().equals(Type.ARRAY)) {
+                    return ((JsonFSArray)entry).getJson(Arrays.copyOfRange(keys,1, keys.length));
+                } else {
+                    throw new JsonFSExcpetion(key + " does not hold an object.");
+                }
+
+            } else {
+                return (T)get(keys[0]);
+            }
+        }, LockOption.READ);
+    }
 
     @Override
     public Object put(String key, Object value) {

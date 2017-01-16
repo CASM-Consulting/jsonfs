@@ -193,22 +193,47 @@ public class JsonFSArray extends JsonFSEntry<List> implements List<Object> {
                 }
 
             } else {
-                return get((int)keys[0]);
+                return get((Integer)keys[0]);
             }
         }, LockOption.READ);
     }
 
-    public JsonFSEntry getJson(int i) {
+    public <T extends JsonFSEntry> T getJson(int i) {
 
-        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c, l)->{
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path keyPath = path.resolve(Integer.toString(i));
 
             if(Files.exists(keyPath)) {
-                JsonFSEntry entry = get(keyPath);
+                T entry = (T)get(keyPath);
                 return entry.type().equals(Type.NULL) ? null : entry;
             } else {
                 return null;
+            }
+        }, LockOption.READ);
+    }
+
+    public <T extends JsonFSEntry<?>> T getJson(final Object... keys) {
+
+
+        return lock(path.resolve(LOCK_FILE), (c, l)->{
+
+            if(keys.length > 1) {
+                Object key = keys[0];
+                Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
+
+                T entry = (T)get(keyPath);
+
+                if(entry.type().equals(Type.OBJECT)) {
+                    return ((JsonFSObject)entry).getJson(Arrays.copyOfRange(keys,1, keys.length));
+                } else if(entry.type().equals(Type.ARRAY)) {
+                    return ((JsonFSArray)entry).getJson(Arrays.copyOfRange(keys,1, keys.length));
+                } else {
+                    throw new JsonFSExcpetion(key + " does not hold an object.");
+                }
+
+            } else {
+                return (T)get((Integer)keys[0]);
             }
         }, LockOption.READ);
     }

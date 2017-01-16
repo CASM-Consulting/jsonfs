@@ -99,6 +99,12 @@ public class JsonFS {
 
         Map val = obj.<JsonFSObject>getJson("blah");
 
+        val.put("blah2", new HashMap<>());
+
+        obj.put("blah", val);
+
+        Map val2 = obj.<JsonFSObject>getJson("blah", "blah2");
+
         AtomicBoolean running = new AtomicBoolean(true);
 
         AtomicInteger n1 = new AtomicInteger(0);
