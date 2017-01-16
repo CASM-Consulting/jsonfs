@@ -6,7 +6,7 @@
 
     <groupId>uk.ac.susx.tag</groupId>
     <artifactId>jsonfs</artifactId>
-    <version>0.1.10</version>
+    <version>0.1.11</version>
 
     <properties>
         <guava-testlib.version>20.0</guava-testlib.version>

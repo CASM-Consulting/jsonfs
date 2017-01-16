@@ -140,9 +140,9 @@ public class JsonFSObject extends JsonFSEntry<Map<String,Object>> implements Map
     }
 
 
-    public JsonFSEntry getJson(Object key) {
+    public <T extends JsonFSEntry> T getJson(Object key) {
 
-        return (JsonFSEntry)lock(path.resolve(LOCK_FILE), (c, l)->{
+        return (T)lock(path.resolve(LOCK_FILE), (c, l)->{
 
             Path keyPath = path.resolve(key.toString().replace("/", "\\\\"));
 

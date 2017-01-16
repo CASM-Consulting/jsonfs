@@ -8,6 +8,7 @@ import java.lang.management.OperatingSystemMXBean;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -93,6 +94,10 @@ public class JsonFS {
     public static void main(String[] args) {
 
         JsonFSObject obj = new JsonFS("test").object();
+
+        obj.put("blah", new HashMap<>());
+
+        Map val = obj.<JsonFSObject>getJson("blah");
 
         AtomicBoolean running = new AtomicBoolean(true);
 
