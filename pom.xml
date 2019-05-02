@@ -15,7 +15,7 @@
     <parent>
         <groupId>uk.ac.susx.tag</groupId>
         <artifactId>tag-dist</artifactId>
-        <version>1.0.4</version>
+        <version>1.0.6</version>
         <relativePath>../tag-dist/pom.xml</relativePath>
     </parent>
 
